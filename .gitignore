@@ -14,4 +14,4 @@ wheels/
 # MiniCode 本地会话
 .mini-session.json
 
-.HANDOFF.md
+HANDOFF.md
