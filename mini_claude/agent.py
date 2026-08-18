@@ -2,13 +2,19 @@
 
 from __future__ import annotations
 
-import json
 import os
 
 import anthropic
 
+from .context import maybe_compact
+from .permissions import check_permission
 from .prompt import build_system_prompt
 from .tools import execute_tool, get_active_tool_definitions
+from .ui import (
+    print_assistant_text,
+    print_tool_call,
+    print_tool_result,
+)
 
 
 # 可以通过环境变量修改模型。
@@ -67,6 +73,12 @@ class Agent:
 
         # 开始 Agent Loop。
         while True:
+            # 必要时压缩对话历史
+            self.messages = await maybe_compact(
+                self.messages,
+                self.client,
+                MODEL,
+            )
             system_prompt = build_system_prompt()
 
             # 只向模型提供当前阶段能够执行的工具。
@@ -77,24 +89,17 @@ class Agent:
             ]
 
             # 发送系统提示词、工具定义和对话历史。
-            reply = await self.client.messages.create(
+            async with self.client.messages.stream(
                 model=MODEL,
                 max_tokens=4096,
                 system=system_prompt,
                 tools=tools,
                 messages=self.messages,
-            )
-
-            # 当前阶段使用非流式响应；第五章再改为流式输出。
-            for block in reply.content:
-                if block.type == "text":
-                    print(
-                        block.text,
-                        end="",
-                        flush=True,
-                    )
-
-            print()
+            ) as stream:
+                async for text in stream.text_stream:
+                    print_assistant_text(text)
+                reply = await stream.get_final_message()
+            print_assistant_text("\n")
 
             # 保存完整回复，不能丢弃其中的 tool_use。
             self.messages.append(
@@ -120,24 +125,33 @@ class Agent:
             # 当前阶段依次执行每个工具。
             for tool_use in tool_uses:
                 # 紧凑显示工具参数，并保留中文。
-                tool_input = json.dumps(
-                    tool_use.input,
-                    ensure_ascii=False,
-                    separators=(",", ":"),
-                )
-
-                print(
-                    f"  调用工具："
-                    f"{tool_use.name}({tool_input})"
-                )
-
-                # 执行工具，并传入读后写状态。
-                output = await execute_tool(
+                print_tool_call(
                     tool_use.name,
                     tool_use.input,
-                    self.read_file_state,
                 )
-
+                # 执行工具前先检查权限。
+                if (
+                    check_permission(
+                        tool_use.name,
+                        tool_use.input,
+                    )
+                    == "deny"
+                ):
+                    output = (
+                        f"Denied: {tool_use.name} was blocked "
+                        "by the permission system."
+                    )
+                # 执行工具，并传入读后写状态。
+                else:
+                    output = await execute_tool(
+                        tool_use.name,
+                        tool_use.input,
+                        self.read_file_state,
+                    )
+                print_tool_result(
+                    tool_use.name,
+                    output,
+                )
                 # 转换成 Anthropic API 要求的 tool_result。
                 tool_results.append(
                     {

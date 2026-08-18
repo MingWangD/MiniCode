@@ -13,3 +13,5 @@ wheels/
 .env
 # MiniCode 本地会话
 .mini-session.json
+
+.HANDOFF.md

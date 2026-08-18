@@ -5,9 +5,15 @@ from __future__ import annotations
 import asyncio
 import os
 import sys
+import readline
 
 from .agent import Agent
 from .session import load_session, save_session
+from .ui import (
+    print_error,
+    print_info,
+    print_welcome,
+)
 
 async def run_cli(argv: list[str] | None = None) -> None:
     """运行单次提问或交互式命令行。"""
@@ -16,18 +22,12 @@ async def run_cli(argv: list[str] | None = None) -> None:
         # python -m mini_claude --resume 继续上次任务
         # argv = ["--resume", "继续", "上次任务"]
     if not os.environ.get("ANTHROPIC_API_KEY"):
-        print(
-            "请先设置 ANTHROPIC_API_KEY。",
-            file=sys.stderr,
-        )
-        return
+        print_error("请先设置 ANTHROPIC_API_KEY。")
+        sys.exit(1)
 
     if not os.environ.get("ANTHROPIC_BASE_URL"):
-        print(
-            "请先设置 ANTHROPIC_BASE_URL。",
-            file=sys.stderr,
-        )
-        return
+        print_error("请先设置 ANTHROPIC_BASE_URL。")
+        sys.exit(1)
     agent = Agent()
     resume = "--resume" in argv
     # 例如：用户传入 --resume
@@ -47,7 +47,7 @@ async def run_cli(argv: list[str] | None = None) -> None:
 
         if saved:
             agent.load_history(saved)
-            print(f"已恢复 {len(saved)} 条历史消息")
+            print_info(f"已恢复 {len(saved)} 条历史消息")
     one_shot =  " ".join(argv).strip()
 
     if one_shot:
@@ -55,22 +55,20 @@ async def run_cli(argv: list[str] | None = None) -> None:
         save_session(agent.history())
         return
 
-    print(
-        "MiniCode 已启动！输入消息开始对话."
-        "输入 'exit' 或 'quit' 退出."
-    )
+    print_welcome()
     while True:
         try:
-            line = input("你:").strip()
+            line = input("\n\033[1;32m>>>\033[0m").strip()
         except EOFError:
-            print()
+            print_info("已退出")
             return
         if line in ("exit", "quit"):
+            print_info("已退出")
             return
         if line == "/clear":
             agent.clear_history()
             save_session(agent.history())
-            print("已清除历史消息")
+            print_info("已清除历史消息")
             continue
         if not line:
             continue
@@ -81,7 +79,7 @@ def main() -> None:
     try:
         asyncio.run(run_cli())
     except KeyboardInterrupt:
-        print("\n已退出")
+        print_info("已退出")
 
 if __name__ == "__main__":
     main()
