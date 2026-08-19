@@ -6,6 +6,7 @@ import os
 
 import anthropic
 
+from .memory import recall_memories
 from .context import maybe_compact
 from .permissions import check_permission
 from .prompt import build_system_prompt
@@ -86,7 +87,8 @@ class Agent:
                 self.client,
                 MODEL,
             )
-            system_prompt = build_system_prompt()
+            system_prompt = build_system_prompt() # 基础系统提示词
+            system_prompt += recall_memories(user_text) # 追加记忆
 
             # 只向模型提供当前阶段能够执行的工具。
             tools = [
