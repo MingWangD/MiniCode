@@ -103,12 +103,25 @@ def _resolve_includes(
     visited: set[str] | None = None,
     depth: int = 0,
 ) -> str:
+    """递归解析 Markdown 内容中独占一行的 ``@路径`` 引用。
+
+    :param content: 可能包含 ``@路径`` 引用的文本。
+    :param base_path: 解析相对引用时使用的基准目录。
+    :param visited: 已解析文件的绝对路径集合，用于阻止循环引用。
+    :param depth: 当前递归层级。
+    :return: 展开引用后的文本。
+    """
     if depth >= _MAX_INCLUDE_DEPTH:
         return content
     if visited is None:
         visited = set()
 
     def _replace(m: _re.Match) -> str:
+        """把单个正则匹配替换为被引用文件的内容。
+
+        :param m: ``_INCLUDE_RE`` 产生的正则匹配对象。
+        :return: 展开后的文件内容或错误说明注释。
+        """
         raw = m.group(1)
         if raw.startswith("~/"):
             resolved = Path.home() / raw[2:]
@@ -133,7 +146,11 @@ def _resolve_includes(
 
 
 def _load_rules_dir(directory: Path) -> str:
-    """加载 .claude/rules/ 目录中的所有 .md 文件。"""
+    """加载指定项目目录下 ``.claude/rules/`` 中的规则文件。
+
+    :param directory: 用于查找 ``.claude/rules`` 的项目目录。
+    :return: 合并后的规则文本；没有可用规则时返回空字符串。
+    """
     rules_dir = directory / ".claude" / "rules"
     if not rules_dir.is_dir():
         return ""
@@ -155,7 +172,10 @@ def _load_rules_dir(directory: Path) -> str:
 
 
 def load_claude_md() -> str:
-    """从 cwd 向上遍历，收集所有 CLAUDE.md 文件并解析 @include。"""
+    """从当前目录向上收集项目指令并解析 ``@include``。
+
+    :return: 合并后的 ``CLAUDE.md`` 与规则文本；未找到时返回空字符串。
+    """
     parts: list[str] = []
     d = Path.cwd().resolve()
     while True:
@@ -180,7 +200,10 @@ def load_claude_md() -> str:
 
 
 def get_git_context() -> str:
-    """获取 git 分支、最近提交和工作区状态。"""
+    """读取当前项目的 Git 分支、最近提交和工作区状态。
+
+    :return: Git 上下文文本；读取失败时返回空字符串。
+    """
     try:
         opts = {"encoding": "utf-8", "timeout": 3, "capture_output": True}
         branch = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"], **opts).stdout.strip()
@@ -208,14 +231,18 @@ def get_git_context() -> str:
 
 
 def build_static_system_prompt() -> str:
-    """返回对所有用户都相同的核心提示词。
-    该内容不随用户或会话变化，因此使用 cache_control 标记。"""
+    """返回对所有用户都相同的核心系统提示词。
+
+    :return: 不随机器、项目或会话变化的静态提示词。
+    """
     return SYSTEM_PROMPT_TEMPLATE
 
 
 def build_dynamic_system_context() -> str:
-    """返回会话级上下文：在单次会话中保持稳定，但随机器和项目变化。
-    该内容不缓存，且不放入静态区块。"""
+    """构建随机器和项目变化的会话级系统上下文。
+
+    :return: 包含工作目录、操作系统平台和 shell 信息的动态文本。
+    """
     plat = f"{platform.system()} {platform.machine()}"
     shell = (os.environ.get("ComSpec") or "cmd.exe") if sys.platform == "win32" else os.environ.get("SHELL", "/bin/sh")
     git_context = get_git_context()
@@ -239,9 +266,10 @@ def build_dynamic_system_context() -> str:
 
 
 def build_user_context_reminder() -> str:
-    """将 CLAUDE.md 和日期包装在 <system-reminder> 中。
-    项目特定内容会拆分系统提示词缓存，因此必须位于已缓存的静态区块之外。
-    与 Claude Code 的 prependUserContext 一样，agent 会将它注入对话的第一条用户消息。"""
+    """将项目指令和当前日期包装为用户上下文提醒。
+
+    :return: 包含项目指令和当前日期的 ``<system-reminder>`` 文本。
+    """
     from datetime import date
     today = date.today().isoformat()
     claude_md = load_claude_md()
@@ -258,7 +286,8 @@ def build_user_context_reminder() -> str:
 
 
 def build_system_prompt() -> str:
-    """将静态提示词和动态上下文组合为单个字符串。
-    该结果供依赖提供商自动前缀缓存的 OpenAI 兼容后端使用，也可用作回退方案。
-    Anthropic 后端使用上方分割后的区块，以便设置自身的 cache_control 断点。"""
+    """把静态核心提示词与动态环境上下文组合起来。
+
+    :return: 可传给 Anthropic 兼容后端的完整系统提示词。
+    """
     return f"{build_static_system_prompt()}\n\n{build_dynamic_system_context()}"

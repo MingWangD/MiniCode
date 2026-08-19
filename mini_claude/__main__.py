@@ -16,7 +16,11 @@ from .ui import (
 )
 
 async def run_cli(argv: list[str] | None = None) -> None:
-    """运行单次提问或交互式命令行。"""
+    """运行单次提问或交互式命令行。
+
+    :param argv: 命令行参数列表；为 ``None`` 时读取 ``sys.argv[1:]``。
+    :return: 无返回值。
+    """
     if argv is None:
         argv = sys.argv[1:] # sys.argv[0] 是程序名
         # python -m mini_claude --resume 继续上次任务
@@ -76,6 +80,10 @@ async def run_cli(argv: list[str] | None = None) -> None:
         save_session(agent.history())
 
 def main() -> None:
+    """启动 MiniCode 命令行程序。
+
+    :return: 无返回值。
+    """
     try:
         asyncio.run(run_cli())
     except KeyboardInterrupt:

@@ -28,6 +28,13 @@ async def maybe_compact(
     client,
     model: str,
 ) -> list[dict]:
+    """在消息数量超过阈值时压缩较早的对话。
+
+    :param messages: 当前完整对话历史。
+    :param client: 提供 ``messages.create`` 方法的 Anthropic 兼容异步客户端。
+    :param model: 用于生成历史摘要的模型名称。
+    :return: 未超过阈值时返回原消息；超过阈值时返回摘要与最近消息。
+    """
     if len(messages) <= COMPACT_THRESHOLD:
         return messages
 

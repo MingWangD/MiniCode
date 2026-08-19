@@ -41,7 +41,10 @@ class Agent:
     """维护对话历史，并循环处理模型发起的工具调用。"""
 
     def __init__(self) -> None:
-        """创建 DeepSeek 客户端并初始化 Agent 状态。"""
+        """创建 DeepSeek 客户端并初始化 Agent 状态。
+
+        :return: 无返回值。
+        """
         if not os.environ.get("ANTHROPIC_API_KEY"):
             raise RuntimeError(
                 "未设置 ANTHROPIC_API_KEY，请先导出该环境变量。"
@@ -62,7 +65,11 @@ class Agent:
         self.read_file_state: dict[str, float] = {}
 
     async def chat(self, user_text: str) -> None:
-        """处理一轮用户输入，直到模型不再调用工具。"""
+        """处理一轮用户输入，直到模型不再调用工具。
+
+        :param user_text: 用户本轮输入的自然语言任务或问题。
+        :return: 无返回值。
+        """
         # 把用户输入加入对话历史。
         self.messages.append(
             {
@@ -171,13 +178,23 @@ class Agent:
             )
 
     def history(self) -> list[dict]:
-        """返回当前完整对话历史。"""
+        """返回当前完整对话历史。
+
+        :return: 保存用户消息、模型回复及工具结果的消息列表。
+        """
         return self.messages
 
     def load_history(self, messages: list[dict]) -> None:
-        """使用已保存的消息恢复对话历史。"""
+        """使用已保存的消息恢复对话历史。
+
+        :param messages: 从会话文件加载的 Anthropic 消息列表。
+        :return: 无返回值。
+        """
         self.messages = messages
 
     def clear_history(self) -> None:
-        """清空当前对话历史。"""
+        """清空当前对话历史。
+
+        :return: 无返回值。
+        """
         self.messages = []

@@ -16,7 +16,10 @@ from rich.text import Text
 console = Console(highlight=False)
 
 def _get_project_version() -> str:
-    """从 pyproject.toml 读取当前项目版本。"""
+    """从项目根目录的 ``pyproject.toml`` 读取版本号。
+
+    :return: 项目版本号；读取失败时返回 ``"unknown"``。
+    """
     pyproject_path = (
         Path(__file__).resolve().parents[1]
         / "pyproject.toml"
@@ -56,7 +59,10 @@ _PIXEL_COLORS = {
 }
 
 def _print_pixel_art() -> None:
-    """使用终端字符绘制彩色像素画。"""
+    """使用 Rich 终端字符绘制彩色像素画。
+
+    :return: 无返回值。
+    """
     for row in _PIXEL_ART:
         line = Text("  ")
 
@@ -77,7 +83,10 @@ def _print_pixel_art() -> None:
         console.print(line)
 
 def print_welcome() -> None:
-    """显示版本、像素画和当前支持的命令。"""
+    """显示 MiniCode 欢迎界面。
+
+    :return: 无返回值。
+    """
     version = _get_project_version()
 
     title = Text()
@@ -111,13 +120,21 @@ def print_welcome() -> None:
     )
 
 def print_assistant_text(text: str) -> None:
-    """原样输出模型返回的文本。"""
+    """原样输出模型流式返回的文本。
+
+    :param text: 需要立即展示的模型文本片段。
+    :return: 无返回值。
+    """
     sys.stdout.write(text)
     sys.stdout.flush()
 
 
 def print_error(message: str) -> None:
-    """以错误样式显示消息。"""
+    """以红色错误样式显示消息。
+
+    :param message: 需要展示的错误内容。
+    :return: 无返回值。
+    """
     text = Text(
         f"\n  错误：{message}",
         style = "red",
@@ -126,7 +143,11 @@ def print_error(message: str) -> None:
 
 
 def print_info(message: str) -> None:
-    """以普通提示样式显示消息。"""
+    """以青色普通提示样式显示消息。
+
+    :param message: 需要展示的状态或提示内容。
+    :return: 无返回值。
+    """
     text = Text(
         f"\n  {message}",
         style = "cyan",
@@ -148,14 +169,23 @@ def _shorten(
     text: str,
     max_length: int = 60,
 ) -> str:
-    """把过长的工具参数缩短到适合终端显示的长度。"""
+    """把过长文本缩短到适合终端显示的长度。
+
+    :param text: 需要检查和缩短的原始文本。
+    :param max_length: 保留的最大字符数。
+    :return: 原文本或追加省略号后的缩短文本。
+    """
     if len(text) <= max_length:
         return text
 
     return text[:max_length] + "..."
 
 def _get_tool_icon(name: str) -> str:
-    """根据工具名称返回对应图标。"""
+    """根据工具名称选择终端图标。
+
+    :param name: 工具名称。
+    :return: 对应图标；未配置时返回通用图标。
+    """
     return _TOOL_ICONS.get(name, "🔨")
 
 
@@ -163,7 +193,12 @@ def _get_tool_summary(
     name: str,
     tool_input: dict,
 ) -> str:
-    """提取适合显示在终端中的工具参数摘要。"""
+    """提取适合显示在终端中的工具参数摘要。
+
+    :param name: 工具名称。
+    :param tool_input: 模型提供的工具参数字典。
+    :return: 工具参数摘要；没有专用格式时返回空字符串。
+    """
     if name in {
         "read_file",
         "write_file",
@@ -204,7 +239,12 @@ def print_tool_call(
         name: str,
         tool_input: dict
 ) -> None:
-    """显示模型请求执行的工具及参数摘要。"""
+    """显示模型请求执行的工具及参数摘要。
+
+    :param name: 模型请求调用的工具名称。
+    :param tool_input: 模型提供的工具输入参数。
+    :return: 无返回值。
+    """
     icon = _get_tool_icon(name)
     summary = _get_tool_summary(
         name,
@@ -227,7 +267,12 @@ def print_tool_result(
         name: str,
         result: str,
 ) -> None:
-    """显示经过截断的工具执行结果。"""
+    """显示经过终端级截断的工具执行结果。
+
+    :param name: 已执行的工具名称。
+    :param result: 工具返回的完整文本结果。
+    :return: 无返回值。
+    """
     max_length = 500
     if len(result) > max_length:
         displayed_result = (

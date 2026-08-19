@@ -174,13 +174,19 @@ _activated_tools: set[str] = set()
 
 
 def reset_activated_tools() -> None:
-    """清空当前会话中已激活的延迟工具记录。"""
+    """清空当前会话中已激活的延迟工具记录。
+
+    :return: 无返回值。
+    """
     _activated_tools.clear()
 
 
 def get_active_tool_definitions(all_tools: list[ToolDef] | None = None) -> list[ToolDef]:
-    """返回工具定义，排除尚未激活的延迟工具。
-    移除 `deferred` 字段，避免将内部标记发送给 API。"""
+    """筛选当前可发送给模型的工具定义。
+
+    :param all_tools: 待筛选的工具定义列表；为 ``None`` 时使用内置定义。
+    :return: 普通工具与已激活延迟工具的定义列表。
+    """
     tools = all_tools if all_tools is not None else tool_definitions
     return [
         {k: v for k, v in t.items() if k != "deferred"}
@@ -190,7 +196,11 @@ def get_active_tool_definitions(all_tools: list[ToolDef] | None = None) -> list[
 
 
 def get_deferred_tool_names(all_tools: list[ToolDef] | None = None) -> list[str]:
-    """返回尚未激活的延迟工具名称。"""
+    """收集尚未激活的延迟工具名称。
+
+    :param all_tools: 待检查的工具定义列表；为 ``None`` 时使用内置定义。
+    :return: 尚未激活的延迟工具名称列表。
+    """
     tools = all_tools if all_tools is not None else tool_definitions
     return [t["name"] for t in tools if t.get("deferred") and t["name"] not in _activated_tools]
 
@@ -199,7 +209,11 @@ def get_deferred_tool_names(all_tools: list[ToolDef] | None = None) -> list[str]
 
 
 def _read_file(inp: dict) -> str:
-    """读取 UTF-8 文件，返回附带行号的文本内容或错误消息。"""
+    """读取 UTF-8 文件并为每一行添加行号。
+
+    :param inp: 工具输入字典，其中 ``file_path`` 是文件路径。
+    :return: 带行号的文件内容或错误文本。
+    """
     try:
         # errors="replace" 会将无法解码的字节替换为 U+FFFD，而不是抛出异常。
         # 该行为与 TypeScript 版本中 Node.js 的 readFileSync("utf-8") 一致，
@@ -213,7 +227,11 @@ def _read_file(inp: dict) -> str:
 
 
 def _write_file(inp: dict) -> str:
-    """创建或覆盖文件，并返回写入行数及内容预览。"""
+    """创建或覆盖文件，并生成写入结果预览。
+
+    :param inp: 工具输入字典，其中 ``file_path`` 是目标路径，``content`` 是文件内容。
+    :return: 写入结果和内容预览，或错误文本。
+    """
     try:
         path = Path(inp["file_path"])
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -257,14 +275,23 @@ def _write_file(inp: dict) -> str:
 
 
 def _normalize_quotes(s: str) -> str:
-    """将弯引号和撇号归一化为 ASCII 直引号。"""
+    """将弯引号和撇号归一化为 ASCII 直引号。
+
+    :param s: 可能包含弯引号或撇号的原始字符串。
+    :return: 引号归一化后的字符串。
+    """
     s = re.sub("[\u2018\u2019\u2032]", "'", s)
     s = re.sub('[\u201c\u201d\u2033]', '"', s)
     return s
 
 
 def _find_actual_string(file_content: str, search_string: str) -> str | None:
-    """在文件内容中查找目标字符串，并兼容引号样式差异。"""
+    """在文件内容中查找目标字符串，并兼容引号样式差异。
+
+    :param file_content: 文件的完整原始文本。
+    :param search_string: 需要查找的目标字符串。
+    :return: 文件中的实际匹配文本；找不到时返回 ``None``。
+    """
     if search_string in file_content:
         return search_string
     norm_search = _normalize_quotes(search_string)
@@ -276,7 +303,13 @@ def _find_actual_string(file_content: str, search_string: str) -> str | None:
 
 
 def _generate_diff(old_content: str, old_string: str, new_string: str) -> str:
-    """为一次字符串替换生成简化的 unified diff 文本。"""
+    """为一次字符串替换生成简化的 unified diff 文本。
+
+    :param old_content: 修改前的完整文件内容。
+    :param old_string: 被替换的旧文本。
+    :param new_string: 替换后的新文本。
+    :return: 简化的 unified diff 文本。
+    """
     before_change = old_content.split(old_string)[0]
     line_num = before_change.count("\n") + 1
     old_lines = old_string.split("\n")
@@ -291,7 +324,11 @@ def _generate_diff(old_content: str, old_string: str, new_string: str) -> str:
 
 
 def _edit_file(inp: dict) -> str:
-    """将文件中唯一匹配的旧字符串替换为新内容，并返回 diff。"""
+    """将文件中唯一匹配的旧字符串替换为新内容。
+
+    :param inp: 工具输入字典，包含 ``file_path``、``old_string`` 和 ``new_string``。
+    :return: 编辑结果和 diff，或错误文本。
+    """
     try:
         path = Path(inp["file_path"])
         content = path.read_text()
@@ -315,7 +352,11 @@ def _edit_file(inp: dict) -> str:
 
 
 def _list_files(inp: dict) -> str:
-    """列出指定目录下匹配 glob 模式的非隐藏文件。"""
+    """列出指定目录下匹配 glob 模式的非隐藏文件。
+
+    :param inp: 工具输入字典，其中 ``pattern`` 是 glob 模式，``path`` 是搜索目录。
+    :return: 匹配的文件路径或说明文本。
+    """
     try:
         base = Path(inp.get("path") or ".")
         pattern = inp["pattern"]
@@ -347,7 +388,11 @@ def _list_files(inp: dict) -> str:
 
 
 def _grep_search(inp: dict) -> str:
-    """递归搜索文件内容，优先使用系统 grep，失败时回退到 Python 实现。"""
+    """递归搜索文件内容，优先使用系统 ``grep``。
+
+    :param inp: 工具输入字典，包含搜索模式、路径和可选文件名规则。
+    :return: 带路径和行号的匹配结果或说明文本。
+    """
     pattern = inp["pattern"]
     path = inp.get("path") or "."
     include = inp.get("include")
@@ -379,7 +424,13 @@ def _grep_search(inp: dict) -> str:
 
 
 def _grep_python(pattern: str, directory: str, include: str | None) -> str:
-    """使用纯 Python 递归搜索正则表达式，可选按 glob 筛选文件名。"""
+    """使用纯 Python 递归搜索正则表达式。
+
+    :param pattern: 要匹配的正则表达式。
+    :param directory: 开始递归搜索的目录。
+    :param include: 可选的文件名 glob 模式。
+    :return: 带文件路径和行号的匹配结果或说明文本。
+    """
     try:
         regex = re.compile(pattern)
     except re.error as e:
@@ -392,7 +443,11 @@ def _grep_python(pattern: str, directory: str, include: str | None) -> str:
     extra = 0
 
     def walk(d: str) -> None:
-        """递归遍历目录，收集匹配行并统计被截断的结果数。"""
+        """递归遍历单个目录并收集匹配行。
+
+        :param d: 当前需要扫描的目录路径。
+        :return: 无返回值。
+        """
         nonlocal extra
         try:
             entries = os.listdir(d)
@@ -430,7 +485,11 @@ def _grep_python(pattern: str, directory: str, include: str | None) -> str:
 
 
 def _run_shell(inp: dict) -> str:
-    """在 shell 中执行命令，并返回输出、失败信息或超时消息。"""
+    """在系统 shell 中执行命令。
+
+    :param inp: 工具输入字典，其中 ``command`` 是命令，``timeout`` 是超时毫秒数。
+    :return: 命令输出、失败信息或超时信息。
+    """
     try:
         timeout_ms = inp.get("timeout", 30000)
         timeout_s = timeout_ms / 1000
@@ -454,7 +513,11 @@ def _run_shell(inp: dict) -> str:
 
 
 def _web_fetch(inp: dict) -> str:
-    """获取 HTTP(S) URL 内容，清理 HTML 标签并按指定长度截断结果。"""
+    """获取 HTTP(S) URL 内容并转换为适合模型阅读的文本。
+
+    :param inp: 工具输入字典，其中 ``url`` 是地址，``max_length`` 是最大字符数。
+    :return: 处理后的网页文本或错误信息。
+    """
     import urllib.request
     import urllib.error
 
@@ -498,7 +561,11 @@ MAX_RESULT_CHARS = 50000
 
 
 def _truncate_result(result: str) -> str:
-    """将超长工具结果截断到限制范围，同时保留开头和结尾。"""
+    """将超长工具结果截断到限制范围，同时保留开头和结尾。
+
+    :param result: 工具执行产生的完整文本结果。
+    :return: 原结果或截断后的结果。
+    """
     if len(result) <= MAX_RESULT_CHARS:
         return result
     keep_each = (MAX_RESULT_CHARS - 60) // 2
@@ -516,7 +583,13 @@ def _truncate_result(result: str) -> str:
 async def execute_tool(
     name: str, inp: dict, read_file_state: dict[str, float] | None = None
 ) -> str:
-    """执行指定工具，并处理读后写保护、延迟工具激活和 mtime 更新。"""
+    """分派并执行指定工具，同时维护文件读后写状态。
+
+    :param name: 要执行的工具名称。
+    :param inp: 传给具体工具的输入参数字典。
+    :param read_file_state: 可选的文件读取时间状态表。
+    :return: 工具执行结果或错误文本。
+    """
     # ─── 编辑前读取与 mtime 新鲜度检查 ───────────
     if name == "read_file":
         result = _read_file(inp)
@@ -583,6 +656,9 @@ async def execute_tool(
 
 
 def reset_permission_cache() -> None:
-    """清空已缓存的权限规则，使下次访问重新加载设置。"""
+    """清空模块中缓存的权限规则。
+
+    :return: 无返回值。
+    """
     global _cached_rules
     _cached_rules = None
